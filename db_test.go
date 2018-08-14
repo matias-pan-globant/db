@@ -9,7 +9,7 @@ func TestCreate(t *testing.T) {
 		key   string
 		value string
 	}
-	tests := []struct {
+	cases := []struct {
 		name    string
 		data    map[string]value
 		args    args
@@ -18,21 +18,22 @@ func TestCreate(t *testing.T) {
 	}{
 		{name: "key exists", data: map[string]value{"hi": value{data: "value"}}, args: args{key: "hi", value: "nope"}, wantErr: true},
 		{name: "key does not exist", data: map[string]value{"bye": value{data: "nope"}}, args: args{key: "hi", value: "nope"}, wantErr: false},
+		{name: "invalid key format", args: args{key: "asd$asd", value: "asda"}, wantErr: true},
 	}
-	for _, tt := range tests {
+	for _, c := range cases {
 		db := &FileDB{
-			data: tt.data,
+			data: c.data,
 		}
-		t.Run(tt.name, func(t *testing.T) {
-			if err := db.Create(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("db.Create() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(c.name, func(t *testing.T) {
+			if err := db.Create(c.args.key, c.args.value); (err != nil) != c.wantErr {
+				t.Errorf("db.Create() error = %v, wantErr %v", err, c.wantErr)
 			}
 		})
 	}
 }
 
 func TestRead(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		name    string
 		data    map[string]value
 		key     string
@@ -42,18 +43,18 @@ func TestRead(t *testing.T) {
 		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, key: "nope", want: "", wantErr: true},
 		{name: "key exists", data: map[string]value{"key": value{data: "value"}}, key: "key", want: "value", wantErr: false},
 	}
-	for _, tt := range tests {
+	for _, c := range cases {
 		db := &FileDB{
-			data: tt.data,
+			data: c.data,
 		}
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := db.Read(tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("db.Read() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(c.name, func(t *testing.T) {
+			got, err := db.Read(c.key)
+			if (err != nil) && !c.wantErr {
+				t.Errorf("db.Read() error = %v, wantErr %v", err, c.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("db.Read() = %v, want %v", got, tt.want)
+			if got != c.want {
+				t.Errorf("db.Read() = %v, want %v", got, c.want)
 			}
 		})
 	}
@@ -64,28 +65,29 @@ func TestUpdate(t *testing.T) {
 		key   string
 		value string
 	}
-	tests := []struct {
+	cases := []struct {
 		name    string
 		data    map[string]value
 		args    args
 		wantErr bool
 	}{
 		{name: "update existing key", data: map[string]value{"key": value{data: "value"}}, args: args{key: "key", value: "val"}, wantErr: false},
+		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, args: args{key: "asdas", value: "asda"}, wantErr: true},
 	}
-	for _, tt := range tests {
+	for _, c := range cases {
 		db := &FileDB{
-			data: tt.data,
+			data: c.data,
 		}
-		t.Run(tt.name, func(t *testing.T) {
-			if err := db.Update(tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("db.Update() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(c.name, func(t *testing.T) {
+			if err := db.Update(c.args.key, c.args.value); (err != nil) != c.wantErr {
+				t.Errorf("db.Update() error = %v, wantErr %v", err, c.wantErr)
 			}
 		})
 	}
 }
 
 func TestDelete(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		name    string
 		data    map[string]value
 		key     string
@@ -95,18 +97,18 @@ func TestDelete(t *testing.T) {
 		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, key: "nope", want: "", wantErr: true},
 		{name: "key does exist", data: map[string]value{"key": value{data: "value"}}, key: "key", want: "value", wantErr: false},
 	}
-	for _, tt := range tests {
+	for _, c := range cases {
 		db := &FileDB{
-			data: tt.data,
+			data: c.data,
 		}
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := db.Delete(tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("db.Delete() error = %v, wantErr %v", err, tt.wantErr)
+		t.Run(c.name, func(t *testing.T) {
+			got, err := db.Delete(c.key)
+			if (err != nil) != c.wantErr {
+				t.Errorf("db.Delete() error = %v, wantErr %v", err, c.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("db.Delete() = %v, want %v", got, tt.want)
+			if got != c.want {
+				t.Errorf("db.Delete() = %v, want %v", got, c.want)
 			}
 		})
 	}

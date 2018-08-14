@@ -3,7 +3,6 @@ package db
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -86,7 +85,6 @@ func parseData(data string) (map[string]value, error) {
 			return map[string]value{}, ErrWrongFormat
 		}
 		key, v := line[:strings.Index(line, keyValueSep)], line[strings.Index(line, keyValueSep)+1:]
-		fmt.Printf("%s=%s\n", key, v)
 		d[key] = value{saved: true, data: v}
 	}
 	return d, nil
