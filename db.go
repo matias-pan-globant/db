@@ -3,6 +3,7 @@ package db
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -22,6 +23,8 @@ var (
 	ErrOpeningFile = errors.New("failed to open file")
 	// ErrSavingToFile happens when writes to the file fail.
 	ErrSavingToFile = errors.New("failed to write to file")
+	// ErrClosedDB happens when operations are done after the DB was closed.
+	ErrClosedDB = errors.New("DB is closed")
 )
 
 var (
@@ -52,18 +55,22 @@ type FileDB struct {
 	mu   sync.Mutex
 	data map[string]value
 	file *os.File
+
+	cmu    sync.RWMutex
+	closed bool
 }
 
 // NewFileDB returns a DB with the data of the
 // file loaded.
 func NewFileDB(filename string) (*FileDB, error) {
 	// If the file doesn't exist, create it, or append to the file
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, ErrOpeningFile
 	}
-	b, err := ioutil.ReadFile(filename)
+	b, err := ioutil.ReadAll(f)
 	if err != nil {
+		fmt.Println(err)
 		return nil, ErrOpeningFile
 	}
 	data, err := parseData(string(b))
@@ -92,11 +99,18 @@ func parseData(data string) (map[string]value, error) {
 
 // Close dumps all the data into the file.
 func (db *FileDB) Close() error {
+	if err := db.isClosed(); err != nil {
+		return err
+	}
+	db.cmu.Lock()
+	db.closed = true
+	db.cmu.Unlock()
 	for k, v := range db.data {
 		if v.saved {
 			continue
 		}
-		b := append([]byte(k), []byte(v.data)...)
+		b := append([]byte(k), []byte(":")...)
+		b = append(b, []byte(v.data)...)
 		if _, err := db.file.Write(append(b, []byte("\n")...)); err != nil {
 			return ErrSavingToFile
 		}
@@ -104,11 +118,23 @@ func (db *FileDB) Close() error {
 	return db.file.Close()
 }
 
+func (db *FileDB) isClosed() error {
+	db.cmu.RLock()
+	defer db.cmu.RUnlock()
+	if db.closed {
+		return ErrClosedDB
+	}
+	return nil
+}
+
 // Create implements the create method of DB.
 // If the key already exists it returns ErrDuplicatedKey.
 // If the  value doesn't follow the basic format it returns
 // ErrWrongFormat.
 func (db *FileDB) Create(key, val string) error {
+	if err := db.isClosed(); err != nil {
+		return err
+	}
 	if !keyFormat.MatchString(key) {
 		return ErrWrongFormat
 	}
@@ -124,6 +150,9 @@ func (db *FileDB) Create(key, val string) error {
 // Read retrieves the value from the database, if it not exists
 // it returns ErrKeyNotFound.
 func (db *FileDB) Read(key string) (string, error) {
+	if err := db.isClosed(); err != nil {
+		return "", err
+	}
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	v, ok := db.data[key]
@@ -138,6 +167,9 @@ func (db *FileDB) Read(key string) (string, error) {
 // If the  value doesn't follow the basic format it returns
 // ErrWrongFormat.
 func (db *FileDB) Update(key, val string) error {
+	if err := db.isClosed(); err != nil {
+		return err
+	}
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	if _, ok := db.data[key]; !ok {
@@ -150,6 +182,9 @@ func (db *FileDB) Update(key, val string) error {
 // Delete retrieves the value from the database and deletes it.
 // If it not exists it returns ErrKeyNotFound.
 func (db *FileDB) Delete(key string) (string, error) {
+	if err := db.isClosed(); err != nil {
+		return "", err
+	}
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	v, ok := db.data[key]

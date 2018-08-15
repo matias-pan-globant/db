@@ -1,10 +1,72 @@
 package db
 
 import (
+	"os"
 	"testing"
 )
 
+func TestNewFileDBErrors(t *testing.T) {
+	if _, err := NewFileDB("/var/nopermtestHASH"); err == nil {
+		t.Fatalf("expected error when opening file we don't own")
+	}
+	if _, err := NewFileDB("testdata/wrongdata.data"); err == nil {
+		t.Fatalf("expected error when data of file is corrupted")
+	}
+}
+
+func TestFilePersistence(t *testing.T) {
+	f, err := os.Create("testdata/testdata.data")
+	if err != nil {
+		t.Fatalf("err opening file: %s", err)
+	}
+	db := &FileDB{
+		file: f,
+		data: map[string]value{"key1": value{data: "value1"}, "key2": value{data: "value2"}},
+	}
+	if err = db.Close(); err != nil {
+		t.Fatalf("failed to close DB: %s", err)
+	}
+
+	db, err = NewFileDB("testdata/testdata.data")
+	if err != nil {
+		t.Fatalf("failed to open DB: %s", err)
+	}
+	if _, ok := db.data["key1"]; !ok {
+		t.Errorf("expected key1 to be in file")
+	}
+	if _, ok := db.data["key2"]; !ok {
+		t.Errorf("expected key1 to be in file")
+	}
+}
+
+func TestClosedDB(t *testing.T) {
+	db, err := NewFileDB("testdata/testdata.data")
+	if err != nil {
+		t.Fatalf("err when opening file: %s", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("err when closing db: %s", err)
+	}
+	if err := db.Create("asda", "sdasd"); err == nil {
+		t.Errorf("Create() on closed DB should fail")
+	}
+	if err := db.Update("asda", "sdasd"); err == nil {
+		t.Errorf("Updatk() on closed DB should fail")
+	}
+	if _, err := db.Read("asda"); err == nil {
+		t.Errorf("Read() on closed DB should fail")
+	}
+	if _, err := db.Delete("asda"); err == nil {
+		t.Errorf("Delete() on closed DB should fail")
+	}
+	if err := db.Close(); err == nil {
+		t.Errorf("Close() on closed DB should fail")
+	}
+}
+
 func TestCreate(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		key   string
 		value string
@@ -33,6 +95,8 @@ func TestCreate(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name    string
 		data    map[string]value
@@ -61,6 +125,8 @@ func TestRead(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		key   string
 		value string
@@ -87,6 +153,8 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name    string
 		data    map[string]value
@@ -115,6 +183,8 @@ func TestDelete(t *testing.T) {
 }
 
 func TestParseData(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name    string
 		data    string
