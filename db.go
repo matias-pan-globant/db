@@ -44,16 +44,11 @@ type DB interface {
 	Delete(key string) (string, error)
 }
 
-type value struct {
-	saved bool
-	data  string
-}
-
 // FileDB is a DB holding data in-memory and making
 // persistence to a file.
 type FileDB struct {
 	mu   sync.Mutex
-	data map[string]value
+	data map[string]string
 	file *os.File
 
 	cmu    sync.RWMutex
@@ -83,16 +78,16 @@ func NewFileDB(filename string) (*FileDB, error) {
 	}, nil
 }
 
-func parseData(data string) (map[string]value, error) {
-	d := make(map[string]value)
+func parseData(data string) (map[string]string, error) {
+	d := make(map[string]string)
 	s := bufio.NewScanner(strings.NewReader(data))
 	for s.Scan() {
 		line := strings.TrimSuffix(s.Text(), "\n")
 		if !lineFormat.MatchString(line) {
-			return map[string]value{}, ErrWrongFormat
+			return map[string]string{}, ErrWrongFormat
 		}
 		key, v := line[:strings.Index(line, keyValueSep)], line[strings.Index(line, keyValueSep)+1:]
-		d[key] = value{saved: true, data: v}
+		d[key] = v
 	}
 	return d, nil
 }
@@ -105,12 +100,11 @@ func (db *FileDB) Close() error {
 	db.cmu.Lock()
 	db.closed = true
 	db.cmu.Unlock()
+	db.file.Truncate(0)
+	db.file.Seek(0, 0)
 	for k, v := range db.data {
-		if v.saved {
-			continue
-		}
 		b := append([]byte(k), []byte(":")...)
-		b = append(b, []byte(v.data)...)
+		b = append(b, []byte(v)...)
 		if _, err := db.file.Write(append(b, []byte("\n")...)); err != nil {
 			return ErrSavingToFile
 		}
@@ -143,7 +137,7 @@ func (db *FileDB) Create(key, val string) error {
 	if _, ok := db.data[key]; ok {
 		return ErrDuplicatedKey
 	}
-	db.data[key] = value{data: val}
+	db.data[key] = val
 	return nil
 }
 
@@ -159,7 +153,7 @@ func (db *FileDB) Read(key string) (string, error) {
 	if !ok {
 		return "", ErrKeyNotFound
 	}
-	return v.data, nil
+	return v, nil
 }
 
 // Update updates the `key` with `value`.
@@ -175,7 +169,7 @@ func (db *FileDB) Update(key, val string) error {
 	if _, ok := db.data[key]; !ok {
 		return ErrKeyNotFound
 	}
-	db.data[key] = value{data: val}
+	db.data[key] = val
 	return nil
 }
 
@@ -192,5 +186,5 @@ func (db *FileDB) Delete(key string) (string, error) {
 		return "", ErrKeyNotFound
 	}
 	delete(db.data, key)
-	return v.data, nil
+	return v, nil
 }

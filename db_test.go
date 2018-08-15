@@ -21,7 +21,7 @@ func TestFilePersistence(t *testing.T) {
 	}
 	db := &FileDB{
 		file: f,
-		data: map[string]value{"key1": value{data: "value1"}, "key2": value{data: "value2"}},
+		data: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 	if err = db.Close(); err != nil {
 		t.Fatalf("failed to close DB: %s", err)
@@ -73,13 +73,13 @@ func TestCreate(t *testing.T) {
 	}
 	cases := []struct {
 		name    string
-		data    map[string]value
+		data    map[string]string
 		args    args
-		want    map[string]value
+		want    map[string]string
 		wantErr bool
 	}{
-		{name: "key exists", data: map[string]value{"hi": value{data: "value"}}, args: args{key: "hi", value: "nope"}, wantErr: true},
-		{name: "key does not exist", data: map[string]value{"bye": value{data: "nope"}}, args: args{key: "hi", value: "nope"}, wantErr: false},
+		{name: "key exists", data: map[string]string{"hi": "value"}, args: args{key: "hi", value: "nope"}, wantErr: true},
+		{name: "key does not exist", data: map[string]string{"bye": "nope"}, args: args{key: "hi", value: "nope"}, wantErr: false},
 		{name: "invalid key format", args: args{key: "asd$asd", value: "asda"}, wantErr: true},
 	}
 	for _, c := range cases {
@@ -99,13 +99,13 @@ func TestRead(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		data    map[string]value
+		data    map[string]string
 		key     string
 		want    string
 		wantErr bool
 	}{
-		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, key: "nope", want: "", wantErr: true},
-		{name: "key exists", data: map[string]value{"key": value{data: "value"}}, key: "key", want: "value", wantErr: false},
+		{name: "key does not exist", data: map[string]string{"key": "value"}, key: "nope", want: "", wantErr: true},
+		{name: "key exists", data: map[string]string{"key": "value"}, key: "key", want: "value", wantErr: false},
 	}
 	for _, c := range cases {
 		db := &FileDB{
@@ -133,12 +133,12 @@ func TestUpdate(t *testing.T) {
 	}
 	cases := []struct {
 		name    string
-		data    map[string]value
+		data    map[string]string
 		args    args
 		wantErr bool
 	}{
-		{name: "update existing key", data: map[string]value{"key": value{data: "value"}}, args: args{key: "key", value: "val"}, wantErr: false},
-		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, args: args{key: "asdas", value: "asda"}, wantErr: true},
+		{name: "update existing key", data: map[string]string{"key": "value"}, args: args{key: "key", value: "val"}, wantErr: false},
+		{name: "key does not exist", data: map[string]string{"key": "value"}, args: args{key: "asdas", value: "asda"}, wantErr: true},
 	}
 	for _, c := range cases {
 		db := &FileDB{
@@ -157,13 +157,13 @@ func TestDelete(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		data    map[string]value
+		data    map[string]string
 		key     string
 		want    string
 		wantErr bool
 	}{
-		{name: "key does not exist", data: map[string]value{"key": value{data: "value"}}, key: "nope", want: "", wantErr: true},
-		{name: "key does exist", data: map[string]value{"key": value{data: "value"}}, key: "key", want: "value", wantErr: false},
+		{name: "key does not exist", data: map[string]string{"key": "value"}, key: "nope", want: "", wantErr: true},
+		{name: "key does exist", data: map[string]string{"key": "value"}, key: "key", want: "value", wantErr: false},
 	}
 	for _, c := range cases {
 		db := &FileDB{
